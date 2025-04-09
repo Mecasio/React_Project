@@ -6,7 +6,7 @@ import { Container } from "@mui/material";
 const EnrolledDashboard = () => {
     return (
         <Container>  
-
+            
         </ Container >
     );
 };

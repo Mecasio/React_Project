@@ -30,12 +30,25 @@ const db2 = mysql.createConnection({
     database: 'enrollment',
 });
 
+//MYSQL CONNECTION FOR ROOM MANAGEMENT AND OTHERS
+const db3 = mysql.createConnection({
+    host: 'localhost',
+    user: 'root',
+    password: '',
+    database: 'earist_sis',
+});
+
 db.connect(err => {
     if (err) throw err;
     console.log("Database Connected");
 });
 
 db2.connect(err => {
+    if (err) throw err;
+    console.log("Database Connected");
+});
+
+db3.connect(err => {
     if (err) throw err;
     console.log("Database Connected");
 });
@@ -62,7 +75,7 @@ app.post("/register", async (req, res) => {
                 const person_id = result.insertId;
                 
                 const query2 = 'INSERT INTO user_accounts (person_id, username, email, password) VALUES (?, ?, ?, ?)';
-
+ 
                 db.query(query2, [person_id, username, email, hashedPassword], (err, result) => {
                     if (err) return db.rollback(() => res.status(500).send({ message: "Error inserting user data" })); 
                 
@@ -81,7 +94,7 @@ app.post("/register", async (req, res) => {
 
 //READ
 app.get('/admitted_users', (req, res) => {
-    const query = 'SELECT * FROM user_accounts';
+    const query = 'SELECT * FROM users_account';
 
     db.query(query, (err,result) => {
         if (err) return res.status(500).send({message: 'Error Fetching data from the server'});
@@ -93,7 +106,7 @@ app.get('/admitted_users', (req, res) => {
 app.post('/transfer', async (req, res) => {
     const { person_id } = req.body;
 
-    const fetchQuery = 'SELECT * FROM user_accounts WHERE person_id = ?';
+    const fetchQuery = 'SELECT * FROM users_account WHERE person_id = ?';
 
     db.query(fetchQuery, [person_id], (err, result) => {
         if (err) return res.status(500).send({ message: "Error fetching data from admission DB", error: err });
@@ -114,15 +127,15 @@ app.post('/transfer', async (req, res) => {
 
             const newPersonId = personInsertResult.insertId;
 
-            const insertUserQuery = 'INSERT INTO user_accounts (person_id, username, email, password) VALUES (?, ?, ?, ?)';
+            const insertUserQuery = 'INSERT INTO user_accounts (person_id, email, password) VALUES (?, ?, ?)';
 
-            db2.query(insertUserQuery, [newPersonId, user.username, user.email, user.password], (err, insertResult) => {
+            db2.query(insertUserQuery, [newPersonId, user.email, user.password], (err, insertResult) => {
                 if (err) {
-                    console.log("Error inserting user:", user.username, err);
+                    console.log("Error inserting user:", user.email, err);
                     return res.status(500).send({ message: "Error inserting user account", error: err });
                 } else {
-                    console.log("User transferred successfully:", user.username);
-                    return res.status(200).send({ message: "User transferred successfully", username: user.username });
+                    console.log("User transferred successfully:", user.email);
+                    return res.status(200).send({ message: "User transferred successfully", email: user.email });
                 }
             });
         });
@@ -171,6 +184,214 @@ app.get('/enrolled_users', (req, res) => {
     });
 });
 
+
+//SCHOOL
+
+// DEPARTMENT CREATION
+app.post('/department', (req, res) => {
+    const { dep_name, dep_code } = req.body;
+    const query = 'INSERT INTO dprtmnt_table (dprtmnt_name, dprtmnt_code) VALUES (?, ?)';
+    db3.query(query, [dep_name, dep_code], (err, result) => {
+        if (err) return res.status(500).send(err);
+        res.status(200).send({ insertId: result.insertId });
+    });
+});
+
+// DEPARTMENT LIST
+app.get('/get_department', (req, res) => {
+    const getQuery = 'SELECT * FROM dprtmnt_table';
+
+    db3.query(getQuery, (err, result) => {
+        if (err) return res.status(500).send(err);
+        res.status(200).send(result);
+    });
+});
+
+// CURRICULUM CREATION
+app.post('/curriculum', (req, res) => {
+    const { name, code, year, department_id } = req.body;
+    console.log("Received department_id:", department_id); 
+
+    const insertProgramQuery = 'INSERT INTO program_table (program_description, program_code) VALUES (?, ?)';
+
+    db3.query(insertProgramQuery, [name, code], (err, programResult) => {
+        if (err) return res.status(500).send(err);
+
+        const insertCurriculumQuery = 'INSERT INTO curriculum_table (program_id, year_id) VALUES (?, ?)';
+        
+        db3.query(insertCurriculumQuery, [programResult.insertId, year], (err, curriculumResult) => {
+            if (err) return res.status(500).send(err);
+
+            const insertDepartmentCurriculumQuery = 'INSERT INTO dprtmnt_curriculum_table (dprtmnt_id, curriculum_id) VALUES (?, ?)';
+            
+            db3.query(insertDepartmentCurriculumQuery, [department_id, curriculumResult.insertId], (err, deptCurriculumResult) => {
+                if (err) return res.status(500).send(err);
+                res.status(200).send({ programId: programResult.insertId, yearId: year, curriculumId: curriculumResult.insertId });
+            });
+        });
+    });
+});
+
+// CURRICULUM LIST
+app.get("/get_curriculum", (req, res) => {
+    const getQuery = `
+        SELECT 
+            p.program_description, 
+            p.program_code, 
+            y.year_description, 
+            d.dprtmnt_name, 
+            ct.curriculum_id,
+            dct.dprtmnt_id,
+            dct.dprtmnt_curriculum_id
+        FROM 
+            program_table p
+        INNER JOIN curriculum_table ct ON p.program_id = ct.program_id
+        INNER JOIN year_table y ON ct.year_id = y.year_id
+        INNER JOIN dprtmnt_curriculum_table dct ON ct.curriculum_id = dct.curriculum_id
+        INNER JOIN dprtmnt_table d ON dct.dprtmnt_id = d.dprtmnt_id;
+    `;
+
+    db3.query(getQuery, (err, result) => {
+        console.error("Database: ", err);
+        if (err) return res.status(500).send(err);
+        res.status(200).send(result);
+    });
+});
+
+// YEAR LIST
+app.get('/year', (req, res) => {
+    const getQuery = 'SELECT * FROM year_table';
+    db3.query(getQuery, (err, result) => {
+        if(err) return res.status(500).send(err);
+        res.status(200).send(result);
+    });
+});
+
+// ROOM CREATION
+app.post('/room', (req, res) => {
+    const { room_name, department_id } = req.body;
+
+    if(department_id === ''){
+        return console.log("No department id received");
+    };
+
+    const insertRoomQuery = 'INSERT INTO room_table (room_description) VALUES (?)';
+    db3.query(insertRoomQuery, [room_name], (err, roomResult) => {
+        if (err) return res.status(500).send(err);
+
+        const room_id = roomResult.insertId;
+
+        const linkRoomQuery = 'INSERT INTO dprtmnt_room_table (dprtmnt_id, room_id, lock_status) VALUES (?, ?, 0)';
+        db3.query(linkRoomQuery, [department_id, room_id], (err, linkResult) => {
+            if (err) return res.status(500).send(err);
+
+            res.status(200).send({ roomId: room_id, linkId: linkResult.insertId });
+        });
+    });
+});
+
+
+// ROOM LIST
+app.get('/get_room', (req, res) => {
+    const { department_id } = req.query;
+
+    const getRoomQuery = `
+        SELECT r.room_id, r.room_description, d.dprtmnt_name
+        FROM room_table r
+        INNER JOIN dprtmnt_room_table drt ON r.room_id = drt.room_id
+        INNER JOIN dprtmnt_table d ON drt.dprtmnt_id = d.dprtmnt_id
+        WHERE drt.dprtmnt_id = ? 
+    `;
+    
+    db3.query(getRoomQuery, [department_id], (err, result) => {
+        if (err) return res.status(500).send(err);
+        res.status(200).send(result);
+    });
+});
+
+// PROFFESOR REGISTRATION
+app.post('/register_prof', async (req, res) => {
+    const {fname, mname, lname, password, department_id} = req.body;
+
+    const hashedProfPassword = await bcrypt.hash(password, 10);
+    
+    const queryForProf = 'INSERT INTO prof_table (fname, mname, lname, password, status) VALUES (?,?,?,?,?)';
+    
+    db3.query(queryForProf, [fname, mname, lname, hashedProfPassword, 0], (err, result)=>{
+        if (err) return res.status(500).send(err);
+        
+        const profID = result.insertId
+        const queryProfDepartment = 'INSERT INTO dprtmnt_profs_table (dprtmnt_id, prof_id) VALUES (?,?)';
+        
+        db3.query(queryProfDepartment, [department_id, profID],(err, profDepartmentResult) => {
+            if(err) return res.status(500).send(err);
+            res.status(200).send(profDepartmentResult);
+        });
+    });
+});
+
+// PROFESSOR LIST
+app.get('/get_prof', (req, res) => {
+    const {department_id} = req.query;
+
+    const getProfQuery = `
+    SELECT p.*, d.dprtmnt_name
+    FROM prof_table p
+    INNER JOIN dprtmnt_profs_table dpt ON p.prof_id = dpt.prof_id
+    INNER JOIN dprtmnt_table d ON dpt.dprtmnt_id = d.dprtmnt_id
+    WHERE dpt.dprtmnt_id = ?
+    `;
+
+    db3.query(getProfQuery, [department_id], (err,result) => {
+        if (err) return res.status(500).send(err);
+        res.status(200).send(result);
+    });
+});
+
+// COURSE TAGGING
+app.post('/adding_course', (req, res) => {
+    const {course_code, course_description, course_unit, lab_unit, curriculum_id, year_level_id, semester_id} = req.body;
+
+    const courseQuery = 'INSERT INTO course_table(course_code, course_description, course_unit, lab_unit) VALUES (?,?,?,?)';
+    db3.query(courseQuery, [course_code, course_description, course_unit, lab_unit], (err, result) => {
+        if (err) return res.status(500).send(err);
+        const courseID = result.insertId;
+
+        const programTaggingQuery = 'INSERT INTO program_tagging_table(curriculum_id, year_level_id, semester_id, course_id) VALUES (?,?,?,?)';
+        db3.query(programTaggingQuery, [curriculum_id, year_level_id, semester_id, courseID], (err, ptResult) => {
+            if (err) return res.status(500).send(err);
+            res.status(200).send(ptResult);
+        });
+    });
+});
+
+// COURSE LIST
+
+
+// YEAR LEVEL TABLE
+app.get('/get_year_level', (req, res) => {
+    const query = 'SELECT * FROM year_level_table';
+    db3.query(query, (err,result) => {
+        if (err) return res.status(500).send(err);
+        res.status(200).send(result);
+    });
+});
+
+// SEMESTER TABLE
+app.get('/get_semester', (req, res) => {
+    const query = 'SELECT * FROM semester_table';
+    db3.query(query, (err,result) => {
+        if (err) return res.status(500).send(err);
+        res.status(200).send(result);
+    });
+});
+
+// FUTURE WORK
+//I will create an api for user to sort the data in ascending or desceding order
+// app.get('/', (req, res)=> {
+// });
+//I will create an api for edit and delete of data
+//I will create an api for user to search data
 
 app.listen(5000, () => {
     console.log('Server runnning');

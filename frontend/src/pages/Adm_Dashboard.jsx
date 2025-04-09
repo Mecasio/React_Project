@@ -44,7 +44,6 @@ const AdmissionDashboard = () => {
                 <TableHead>
                 <TableRow>
                     <TableCell sx={{ textAlign: "center"}}>Person ID</TableCell>
-                    <TableCell sx={{ textAlign: "center" }}>Username</TableCell>
                     <TableCell sx={{ textAlign: "center" }}>Email Address</TableCell>
                     <TableCell sx={{ textAlign: "center" }}>Action</TableCell>
                 </TableRow>
@@ -53,7 +52,6 @@ const AdmissionDashboard = () => {
                 {users.map((user, index) => (
                     <TableRow key={index}>
                     <TableCell sx={{ textAlign: "center" }}>{user.person_id}</TableCell>
-                    <TableCell sx={{ textAlign: "center" }}>{user.username}</TableCell>
                     <TableCell sx={{ textAlign: "center" }}>{user.email}</TableCell>
                     <TableCell sx={{display: "flex", justifyContent: 'center'}}>
                         <Button

@@ -366,7 +366,24 @@ app.post('/adding_course', (req, res) => {
 });
 
 // COURSE LIST
+app.get('/get_course', (req, res) => {
+    const getCourseQuery = `
+        SELECT 
+            ct.*, yl.*, st.*, c.*, p.*, y.*
+        FROM program_tagging_table pt
+        INNER JOIN curriculum_table ct ON pt.curriculum_id = ct.curriculum_id
+        INNER JOIN year_level_table yl ON pt.year_level_id = yl.year_level_id
+        INNER JOIN semester_table st ON pt.semester_id = st.semester_id
+        INNER JOIN course_table c ON pt.course_id = c.course_id
+        INNER JOIN program_table p ON ct.program_id = p.program_id
+        INNER JOIN year_table y ON ct.year_id = y.year_id
+    `;
 
+    db3.query(getCourseQuery, (err, results) => {
+        if (err) res.status(500).send(err);
+        res.status(200).send(results);
+    });
+});
 
 // YEAR LEVEL TABLE
 app.get('/get_year_level', (req, res) => {
@@ -385,6 +402,7 @@ app.get('/get_semester', (req, res) => {
         res.status(200).send(result);
     });
 });
+
 
 // FUTURE WORK
 //I will create an api for user to sort the data in ascending or desceding order

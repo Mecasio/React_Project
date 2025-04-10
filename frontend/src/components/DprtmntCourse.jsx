@@ -1,6 +1,6 @@
 import React, {useState, useEffect} from 'react';
 import axios from 'axios';
-import { Container } from '@mui/material';
+import { Container, Table, TableHead, TableBody, TableRow, TableCell, TextField } from '@mui/material';
 
 const DepartmentCourse = () => {
     
@@ -13,6 +13,7 @@ const DepartmentCourse = () => {
         year_level_id: '', 
         semester_id: '',
     });
+
     const [courseList, setCourseList] = useState([]);
     const [yearLevelList, setYearlevelList] = useState([]);
     const [semesterList, setSemesterList] = useState([]);
@@ -43,12 +44,22 @@ const DepartmentCourse = () => {
         } catch (err) {
           console.log(err);
         }
-      };
+    };
+
+    const fetchCourse = async () => {
+        try {
+            const response = await axios.get('http://localhost:5000/get_course');
+            setCourseList(response.data);
+          } catch (err) {
+            console.log(err);
+          }
+    }
 
     useEffect(()=>{
         fetchYearLevel();
         fetchSemester();
         fetchCurriculum();
+        fetchCourse();
     }, []);
 
     const handleChanges = (e) => {
@@ -126,6 +137,82 @@ const DepartmentCourse = () => {
                 </div>
                 <input type="submit" value='Submit'/>
             </form>
+            <div>
+                <span>Courses:</span>
+                <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Course Description</TableCell>
+              <TableCell>Course Code</TableCell>
+              <TableCell>Course Unit</TableCell>
+              <TableCell>Program</TableCell>
+              <TableCell>Year</TableCell>
+              <TableCell>Year Level</TableCell>
+              <TableCell>Semester</TableCell>
+              <TableCell>Action</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {courseList.map((course) => (
+              <TableRow key={course.course_id}>
+                <TableCell>
+                  <TextField
+                    variant="standard"
+                    name="course_description"
+                    value={course.course_description}
+                  />
+                </TableCell>
+                <TableCell>
+                  <TextField
+                    variant="standard"
+                    name="course_code"
+                    value={course.course_code}
+                  />
+                </TableCell>
+                <TableCell>
+                  <TextField
+                    variant="standard"
+                    name="course_unit"
+                    value={course.course_unit}
+                  />
+                </TableCell>
+                <TableCell style={{width: 'fit-content'}}>
+                  <TextField
+                    variant="standard"
+                    name="program_description"
+                    value={course.program_description}
+                  />
+                </TableCell>
+                <TableCell>
+                  <TextField
+                    variant="standard"
+                    name="year_description"
+                    value={course.year_description}
+                    fullWidth
+                  />
+                </TableCell>
+                <TableCell>
+                  <TextField
+                    variant="standard"
+                    name="course_year_level"
+                    value={course.year_level_description}
+                  />
+                </TableCell>
+                <TableCell>
+                  <TextField
+                    variant="standard"
+                    name="course_semester"
+                    value={course.semester_description}
+                  />
+                </TableCell>
+                <TableCell>
+                    <button style={{background: 'maroon', color: 'white'}}>Edit</button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+            </div>
         </Container>
     )
 }
